@@ -4,14 +4,36 @@ import numpy as np
 import random
 from tkinter import *
 from tkinter import ttk
+import requests
+import os
+
+
+# URL of the CSV files
+# Delete the .csv files if they exist locally to re-download the latest data
+surl = 'https://raw.githubusercontent.com/EU-ECDC/Respiratory_viruses_weekly_data/main/data/nonSentinelSeverity.csv'
+surlfile = 'nonSentinelSeverity.csv'
 
 vurl = 'https://raw.githubusercontent.com/EU-ECDC/Respiratory_viruses_weekly_data/main/data/variants.csv'
-surl = 'https://raw.githubusercontent.com/EU-ECDC/Respiratory_viruses_weekly_data/main/data/nonSentinelSeverity.csv'
+vurlfile = 'variants.csv'
+
+
+# Download the CSV file if it doesn't exist locally
+if not os.path.exists(surlfile):
+    response = requests.get(surl)
+    with open(surlfile, 'wb') as f:
+        f.write(response.content)
+
+# Download the CSV file if it doesn't exist locally
+if not os.path.exists(vurlfile):
+    response = requests.get(vurl)
+    with open(vurlfile, 'wb') as f:
+        f.write(response.content)   
+
 
 # Function to read available countries from CSV files
 def get_available_countries():
-    variants_df = pd.read_csv(vurl)
-    severity_df = pd.read_csv(surl)
+    variants_df = pd.read_csv(vurlfile)
+    severity_df = pd.read_csv(surlfile)
     countries_variants = variants_df['countryname'].unique()
     countries_severity = severity_df['countryname'].unique()
     countries = set(countries_variants).union(set(countries_severity))
@@ -26,7 +48,7 @@ def update_plot():
 def update_plot_with_country(country):
     # Read variants data from CSV
     
-    variants_df = pd.read_csv(vurl)
+    variants_df = pd.read_csv(vurlfile)
     variants_df = variants_df[(variants_df['countryname'] == country) & 
                               (variants_df['pathogen'] == 'SARS-CoV-2') &
                               (variants_df['indicator'] == 'proportion')]
@@ -46,9 +68,8 @@ def update_plot_with_country(country):
         variant_colors = [plt.cm.tab10.colors[i % num_colors] for i in range(len(variants.columns))]
 
 
-    # Read severity data from CSV
-    
-    severity_df = pd.read_csv(surl)
+    # Read severity data from CSV    
+    severity_df = pd.read_csv(surlfile)
     severity_df = severity_df[(severity_df['countryname'] == country) &
                               (severity_df['pathogen'] == 'SARS-CoV-2') &
                               (severity_df['age'] == 'total') &
@@ -64,6 +85,7 @@ def update_plot_with_country(country):
     cases_bar = ax1.bar(np.arange(len(severity_pivot.index)), severity_pivot['hospitaladmissions'], color='#C5DFB9', alpha=0.5, label='Hosp. Admissions')
     icu_bar = ax1.bar(np.arange(len(severity_pivot.index)), severity_pivot['ICUadmissions'], color='#548135', alpha=0.5, label='ICU', bottom=severity_pivot['deaths'])
     deaths_bar = ax1.bar(np.arange(len(severity_pivot.index)), severity_pivot['deaths'], color='black', alpha=0.5, label='Deaths')
+    
     ax2 = ax1.twinx()
     for i, variant in enumerate(variants.columns):
         line = ax2.plot(variants.index, variants[variant], marker='', linestyle='-', color=variant_colors[i], label=f'{variant}', linewidth=2.5)
