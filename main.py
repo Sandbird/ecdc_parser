@@ -1,5 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import numpy as np
 import random
 from tkinter import *
@@ -39,6 +40,31 @@ def get_available_countries():
     countries = set(countries_variants).union(set(countries_severity))
     return sorted(list(countries))
 
+def is_bright(color, threshold=0.7):
+    # Calculate the luminance of the color
+    luminance = 0.2126 * color[0] + 0.7152 * color[1] + 0.0722 * color[2]
+    # Check if the luminance is above the threshold
+    return luminance > threshold
+
+def color_distance(color1, color2):
+    # Calculate Euclidean distance between two colors in RGB space
+    return np.linalg.norm(np.array(color1) - np.array(color2))
+
+def random_color_generator(num_colors, min_distance=0.2, seed=None):
+    if seed is not None:
+        random.seed(seed)
+    colors = []
+    available_colors = list(mcolors.CSS4_COLORS.keys())  # Use keys to get color names directly
+    while len(colors) < num_colors:
+        color_name = random.choice(available_colors)
+        color_rgb = mcolors.to_rgb(color_name)
+        if not is_bright(color_rgb):
+            # Check distance from other colors
+            if all(color_distance(color_rgb, mcolors.to_rgb(c)) > min_distance for c in colors):
+                colors.append(color_name)
+    return colors
+
+
 # Function to update the plot based on selected country
 def update_plot():
     country = country_variable.get()
@@ -57,16 +83,9 @@ def update_plot_with_country(country):
     variants.index = pd.to_datetime(variants.index + '-1', format='%G-W%V-%u').map(lambda x: x.strftime('%Y-%m-%d'))
     variants = variants.loc['2020-08-20':]
 
-    # Get the number of available colors in the tab10 colormap
-    num_colors = len(plt.cm.tab10.colors)
-
-    # If the number of variants is less than the number of available colors, sample without replacement
-    if len(variants.columns) <= num_colors:
-        variant_colors = random.sample(list(plt.cm.tab10.colors), len(variants.columns))
-    # Otherwise, cycle through colors to ensure enough colors for all variants
-    else:
-        variant_colors = [plt.cm.tab10.colors[i % num_colors] for i in range(len(variants.columns))]
-
+    # Get the number of random colors using a seed
+    num_colors = len(variants.columns)
+    variant_colors = random_color_generator(num_colors, seed=1123)
 
     # Read severity data from CSV    
     severity_df = pd.read_csv(surlfile)
